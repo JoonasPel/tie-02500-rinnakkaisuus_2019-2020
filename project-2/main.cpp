@@ -1,5 +1,9 @@
 #include "concur2020lib/concur2020.hh"
 #include <iostream>
+#include <thread>
+#include <mutex>
+#include <vector>
+#include <memory>
 
 const int SAMPLES = 1000;
 
@@ -32,19 +36,38 @@ void countSample( concur2020::DetectorData_t sample ) {
 
 }
 
-void processSample() {
+void processSample(unsigned int* processedSamples, std::mutex* mutex) {
 
+    mutex->lock();
+
+    if (*processedSamples >= SAMPLES){
+        mutex->unlock();
+        return;
+    }
     auto sample = concur2020::detect();
+    (*processedSamples)++;
     std::cout << "Read: " << concur2020::itemName( sample ) << std::endl;
     countSample( sample );
-
+    mutex->unlock();
+    processSample(processedSamples, mutex);
 }
 
 int main() {
+    unsigned short int numOfThreads = 8;
+    unsigned int processedSamples = 0;
 
-    for( auto i = 0; i < SAMPLES; i++ ) {
-        processSample();
+    std::mutex mtx;
+    std::vector<std::shared_ptr<std::thread>> threads;
+    threads.reserve(numOfThreads);
+
+    for( auto i = 0; i < numOfThreads; i++ ) {
+        threads.emplace_back(std::make_shared<std::thread>(processSample, &processedSamples, &mtx));
     }
+
+    for(int i = 0; i < numOfThreads; i++) {
+        threads.at(i)->join();
+    }
+
     printCounters();
     return EXIT_SUCCESS;
 
