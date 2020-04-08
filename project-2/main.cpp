@@ -3,7 +3,6 @@
 #include <thread>
 #include <mutex>
 #include <vector>
-#include <memory>
 
 const int SAMPLES = 1000;
 
@@ -39,7 +38,7 @@ void countSample( concur2020::DetectorData_t sample ) {
 void processSample(unsigned int* processedSamples, std::mutex* mutex) {
 
     mutex->lock();
-
+    // Kaikki mutexin sisällä ovat kriittisiä operaatioita
     if (*processedSamples >= SAMPLES){
         mutex->unlock();
         return;
@@ -48,6 +47,7 @@ void processSample(unsigned int* processedSamples, std::mutex* mutex) {
     (*processedSamples)++;
     std::cout << "Read: " << concur2020::itemName( sample ) << std::endl;
     countSample( sample );
+
     mutex->unlock();
     processSample(processedSamples, mutex);
 }
@@ -57,15 +57,16 @@ int main() {
     unsigned int processedSamples = 0;
 
     std::mutex mtx;
-    std::vector<std::shared_ptr<std::thread>> threads;
+    std::vector<std::thread> threads;
     threads.reserve(numOfThreads);
 
     for( auto i = 0; i < numOfThreads; i++ ) {
-        threads.emplace_back(std::make_shared<std::thread>(processSample, &processedSamples, &mtx));
+        threads.emplace_back(std::thread(processSample, &processedSamples, &mtx));
     }
 
     for(int i = 0; i < numOfThreads; i++) {
-        threads.at(i)->join();
+        threads.at(i).join();
+        // Odotetaan kaikki säikeet tähän
     }
 
     printCounters();
