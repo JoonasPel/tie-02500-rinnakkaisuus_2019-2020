@@ -38,17 +38,19 @@ void countSample( concur2020::DetectorData_t sample ) {
 void processSample(unsigned int* processedSamples, std::mutex* mutex) {
 
     mutex->lock();
-    // Kaikki mutexin sisällä ovat kriittisiä operaatioita
+
+    // Tarkistaa, onko valmista. Ei säiturvallinen
     if (*processedSamples >= SAMPLES){
         mutex->unlock();
         return;
     }
-    auto sample = concur2020::detect();
-    (*processedSamples)++;
-    std::cout << "Read: " << concur2020::itemName( sample ) << std::endl;
-    countSample( sample );
 
+    auto sample = concur2020::detect(); // Dokumentaation mukaan ei säiturvallinen
+    (*processedSamples)++;    // Ei säiturvallinen
+    std::cout << "Read: " << concur2020::itemName( sample ) << std::endl;
+    countSample( sample );    //Ei säiturvallinen
     mutex->unlock();
+
     processSample(processedSamples, mutex);
 }
 
@@ -65,8 +67,7 @@ int main() {
     }
 
     for(int i = 0; i < numOfThreads; i++) {
-        threads.at(i).join();
-        // Odotetaan kaikki säikeet tähän
+        threads.at(i).join();   // Odotetaan kaikki säikeet tähän
     }
 
     printCounters();
